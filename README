@@ -1,0 +1,6 @@
+====Magic Directory====
+
+Is a daemon that auto-organize a directory.
+The main intention is to provide a way to move or copy files from a central
+directory to others. This started as a way to organize my ~/Downloads
+together with the rtorrent watch feature. 
