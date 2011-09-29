@@ -25,10 +25,14 @@ from optparse import OptionParser
 import daemon
 import daemon.pidlockfile as pid
 import sys
+from core import MagicDirectory
+import time
+
+RUN = True
 
 def parse_args():
     parser = OptionParser()
-    parser.add_option("-c", "--conf", dest="conf",
+    parser.add_option("-c", "--conf", dest="conf", default='~/.config/mdd/conf'
                   help="MDD configuration file, default: [~/.config/mdd/conf]")
     parser.add_option("-i", "--interval",
                   action="store", dest="interval", default=60,
@@ -55,9 +59,15 @@ if __name__ == '__main__':
     if options.version:
         print '0.1'
         sys.exit(0)
+        
+    #TODO: create the pid control
+        
+    magic_directory = MagicDirectory(options.conf, options.section)
 
     if options.no_daemon:
-        mdd(options)
+        magic_directory.run()
     else:
         with daemon.DaemonContext():
-            mdd(options)
+            while RUN:
+                magic_directory.run()
+                time.sleep(options.interval)

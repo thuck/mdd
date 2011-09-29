@@ -23,6 +23,13 @@ Copyright (C) 2011 Denis 'Thuck' Doria
 
 import conf
 
+class MagicDirectory(object):
+    def __init__(self,conf_file, section):
+        self.conf_file = conf_file
+        self.section = section
+        
+    def run(self):
+        pass
 
 class Controller(object):
     pass
