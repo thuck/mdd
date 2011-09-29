@@ -29,13 +29,20 @@ import fnmatch
 
 
 class InvalidConfiguration(Exception):
+    def __init__(self, option, value, error):
+        Exception.__init__(self)
+        self.option = option
+        self.value = value
+        self.error = error
+
     def __repr__(self):
         """The repr for the exception"""
-        return "Invalid Configuration"
+        return "Option:%s Value:%s Error:%s" % (self.option, self.value,
+                                                             self.error)
 
     def __str__(self):
         """The str for the exception"""
-        return "Invalid Configuration"
+        return "Option:%s Value:%s" % (self.option, self.value, self.error)
 
 
 class Section(object):
@@ -63,12 +70,16 @@ class Section(object):
     @source.setter
     def source(self, directory):
         """A setter to source"""
-        if os.path.isdir(directory):
-            self._source = directory
+        if not os.path.isdir(directory):
+            raise InvalidConfiguration('source', directory, 'is not a directory')
 
-        else:
-            #TODO: Create a log for error here
-            raise InvalidConfiguration
+        elif not os.access(directory, os.R_OK):
+            raise InvalidConfiguration('source', directory, 'permission denied')
+
+        elif directory is None:
+            raise InvalidConfiguration('source', directory, 'empty parameter')
+
+        self._source = directory
 
     @property
     def destination(self):
@@ -78,12 +89,16 @@ class Section(object):
     @destination.setter
     def destination(self, directory):
         """A setter to destination"""
-        if os.path.isdir(directory):
-            self._destination = directory
+        if not os.path.isdir(directory):
+            raise InvalidConfiguration('source', directory, 'is not a directory')
 
-        else:
-            #TODO: Create a log for error here
-            raise InvalidConfiguration
+        elif not os.access(directory, os.W_OK):
+            raise InvalidConfiguration('source', directory, 'permission denied')
+
+        elif directory is None:
+            raise InvalidConfiguration('source', directory, 'empty parameter')
+
+        self._destination = directory
 
     @property
     def files(self):
@@ -98,8 +113,8 @@ class Section(object):
             regex = re.compile(fnmatch.translate(self.unix_pattern_matching))
 
         else:
-            #TODO: Create a log for error here
-            raise InvalidConfiguration
+            raise InvalidConfiguration('pattern matching', None,
+                                       'empty parameter')
 
         #All files that must be copy or moved
         tmp_files = [file_ for file_ in all_files
@@ -111,10 +126,16 @@ class Section(object):
             exception = re.compile(self.exception)
             tmp_files = [file_ for  file_ in tmp_files
                                if not re.search(exception, file_)]
+        #TODO: log all files that doesn't have permission to be moved/copied (Warning)
+        #[(os.path.join(self.source, file_),
+        #  os.stat(os.path.join(self.source, file_)))[-2]
+        #  for file_ in tmp_files
+        #  if not os.access(os.path.join(self.source, file_), os.R_OK)]
 
-        return [(os.path.join(self.directory, file_),
-                 os.stat(os.path.join(self.directory, file_)))[-2]
-                 for file_ in tmp_files]
+        return [(os.path.join(self.source, file_),
+                 os.stat(os.path.join(self.source, file_)))[-2]
+                 for file_ in tmp_files
+                 if os.access(os.path.join(self.source, file_), os.R_OK)]
 
     @property
     def strategy(self):
@@ -122,9 +143,9 @@ class Section(object):
 
     @strategy.setter
     def strategy(self, strategy):
-        try:
-            return getattr(shutil, strategy)
+        if strategy in ('move', 'copy'):
+            self._strategy = getattr(shutil, strategy)
 
-        except AttributeError:
+        else:
             #TODO: log this error
-            raise InvalidConfiguration
+            raise InvalidConfiguration('strategy', strategy, 'not a valid strategy')
