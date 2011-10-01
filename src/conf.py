@@ -27,9 +27,8 @@ from section import InvalidConfiguration
 
 class Configuration(object):
 
-    default = {'use_safe_mode':True,
-               'strategy':'move',
-               'if_exists_rename':True,
+    default = {'strategy':'move',
+               'force':True,
                'source':None,
                'destination':None,
                'regex':None,
@@ -43,66 +42,43 @@ class Configuration(object):
         self.config = ConfigParser.SafeConfigParser(self.default)
         self.config.read(os.path.expanduser(conf_file))
 
+    def _get_value(self, section, option):
+        return (self.config.has_option(section, option) and
+                self.config.get(section, option) or
+                self.config.get('DEFAULT', option))
+
     def get_magic_directories(self):
-        directories = []
+        sections = []
         #Change the default configuration.
         if self.config.has_section('default'):
             for name, value in self.config.items('default'):
                 self.config.set('DEFAULT', name, value)
             self.config.remove_section('default')
 
-        get_value = lambda section, option:(
-                    self.config.has_option(section, option) and
-                    self.config.get(section, option) or
-                    self.config.get('DEFAULT', option)
-                    )
-        get_bool = lambda section, option:(
-                    self.config.has_option(section, option) and
-                    self.config.getboolean(section, option) or
-                    self.config.getboolean('DEFAULT', option)
-                    )
-        get_int = lambda section, option:(
-                    self.config.has_option(section, option) and
-                    self.config.getint(section, option) or
-                    self.config.getint('DEFAULT', option)
-                    )
-
         for section in self.config.sections():
-
-            name = get_value(section, 'name')
-            source = get_value(section, 'source')
-            destination = get_value(section, 'destination')
-            regex = get_value(section, 'regex')
-            unix_pattern_matching = get_value(section, 'unix_pattern_matching')
-            exception = get_value(section, 'exception')
-            try:
-                if_exists_rename = get_bool(section, 'if_exists_rename')
-            except ValueError:
-                #TODO: log this error as a configuration error
-                continue
-            pre_move = get_value(section, 'pre_move')
-            pos_move = get_value(section, 'pos_move')
-            strategy = get_value(section, 'strategy')
-            try:
-                priority = get_int(section, 'priority')
-            except ValueError:
-                #TODO: log this error as a configuration error
-                continue
+            name = self._get_value(section, 'name')
+            source = self._get_value(section, 'source')
+            destination = self._get_value(section, 'destination')
+            regex = self._get_value(section, 'regex')
+            upm = self._get_value(section, 'unix_pattern_matching')
+            exception = self._get_value(section, 'exception')
+            force = self._get_value(section, 'force')
+            pre_move = self._get_value(section, 'pre_move')
+            pos_move = self._get_value(section, 'pos_move')
+            strategy = self._get_value(section, 'strategy')
+            priority = self._get_value(section, 'priority')
 
             try:
-                directories.append(
+                sections.append(
                     section.Section(
                                 name, source, destination,
-                                regex, unix_pattern_matching,
-                                exception, if_exists_rename,
+                                regex, upm,
+                                exception, force,
                                 pre_move, pos_move, strategy, priority
                               )
                         )
-            except InvalidConfiguration:
-                #Nothing todo with the exception, maybe a log, but not sure
-                #Indeed where should the log be, in the place where the exception
-                #is raised on where is captured? I think it should be in the
-                #place that catch(check the past f catch) so here.
+            except InvalidConfiguration, error:
+                #TODO: Log the exception as a configuration error
                 continue
 
-        return directories
+        return sections
