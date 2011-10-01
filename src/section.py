@@ -48,7 +48,7 @@ class InvalidConfiguration(Exception):
 class Section(object):
     def __init__(self, name, source, destination,
                        regex, unix_pattern_matching,
-                       exception, if_exists_rename,
+                       exception, force,
                        pre_move, pos_move, strategy, priority):
         self.name = name
         self.source = source
@@ -56,11 +56,12 @@ class Section(object):
         self.regex = regex
         self.unix_pattern_matching = unix_pattern_matching
         self.exception = exception
-        self.if_exists_rename = if_exists_rename
+        self.force = force
         self.pre_move = pre_move
         self.pos_move = pos_move
         self.strategy = strategy
         self.priority = priority
+        self.files = []
 
     @property
     def source(self):
@@ -100,8 +101,7 @@ class Section(object):
 
         self._destination = directory
 
-    @property
-    def files(self):
+    def update_transfer_files(self):
         """A getter to files"""
         all_files = os.listdir(self.source)
         #TODO: log all this flow
@@ -116,10 +116,8 @@ class Section(object):
             raise InvalidConfiguration('pattern matching', None,
                                        'empty parameter')
 
-        #All files that must be copy or moved
-        tmp_files = [file_ for file_ in all_files
-                           if re.search(regex, file_)
-                           if os.path.isfile(file_)]
+        #All files that must be copy or moved, directories included
+        tmp_files = [file_ for file_ in all_files if re.search(regex, file_)]
 
         #Remove the exceptions
         if self.exception is not None:
@@ -132,8 +130,10 @@ class Section(object):
         #  for file_ in tmp_files
         #  if not os.access(os.path.join(self.source, file_), os.R_OK)]
 
-        return [(os.path.join(self.source, file_),
-                 os.stat(os.path.join(self.source, file_)))[-2]
+        #This will return a list with a tuple that contain a pair FILE,MODIFIED_TIME
+        #This will be used to check if it's safe or note to copy a file (torrents should be a problem)
+        self.files = [(os.path.join(self.source, file_),
+                 os.path.getmtime(os.path.join(self.source, file_)))
                  for file_ in tmp_files
                  if os.access(os.path.join(self.source, file_), os.R_OK)]
 
@@ -144,8 +144,24 @@ class Section(object):
     @strategy.setter
     def strategy(self, strategy):
         if strategy in ('move', 'copy'):
-            self._strategy = getattr(shutil, strategy)
+            self._strategy = strategy
 
         else:
             #TODO: log this error
-            raise InvalidConfiguration('strategy', strategy, 'not a valid strategy')
+            raise InvalidConfiguration('strategy',
+                                        strategy,
+                                        'not a valid strategy')
+
+    @property
+    def priority(self):
+        return self._priority
+
+    @priority.setter
+    def priority(self, priority):
+        try:
+            self._priority = int(priority)
+
+        except ValueError:
+            raise InvalidConfiguration('priority',
+                                        priority,
+                                        'not a valid priority')
