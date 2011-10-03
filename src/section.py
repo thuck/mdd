@@ -1,3 +1,4 @@
+
 """Magic Directory Daemon
 
 Copyright (C) 2011 Denis 'Thuck' Doria
@@ -19,13 +20,11 @@ Copyright (C) 2011 Denis 'Thuck' Doria
 # along with this program; if not, write to the Free Software
 # -------------------------------------------------------------------------
 
-#import shutil
 import os
 import os.path
 import re
 import fnmatch
-#import ConfigParser
-#import logging
+import logging
 
 
 class InvalidConfiguration(Exception):
@@ -42,7 +41,7 @@ class InvalidConfiguration(Exception):
 
     def __str__(self):
         """The str for the exception"""
-        return "Option:%s Value:%s" % (self.option, self.value, self.error)
+        return "Option:%s Value:%s Error:%s" % (self.option, self.value, self.error)
 
 
 class Section(object):
@@ -91,13 +90,13 @@ class Section(object):
     def destination(self, directory):
         """A setter to destination"""
         if not os.path.isdir(directory):
-            raise InvalidConfiguration('source', directory, 'is not a directory')
+            raise InvalidConfiguration('destination', directory, 'is not a directory')
 
         elif not os.access(directory, os.W_OK):
-            raise InvalidConfiguration('source', directory, 'permission denied')
+            raise InvalidConfiguration('destination', directory, 'permission denied')
 
         elif directory is None:
-            raise InvalidConfiguration('source', directory, 'empty parameter')
+            raise InvalidConfiguration('destination', directory, 'empty parameter')
 
         self._destination = directory
 
@@ -130,10 +129,9 @@ class Section(object):
         #  for file_ in tmp_files
         #  if not os.access(os.path.join(self.source, file_), os.R_OK)]
 
-        #This will return a list with a tuple that contain a pair FILE,MODIFIED_TIME
+        #This will return a list with a tuple that contain FILE, MODIFIED_TIME
         #This will be used to check if it's safe or note to copy a file (torrents should be a problem)
-        self.files = [(os.path.join(self.source, file_),
-                 os.path.getmtime(os.path.join(self.source, file_)))
+        self.files = [(file_, os.path.getmtime(os.path.join(self.source, file_)))
                  for file_ in tmp_files
                  if os.access(os.path.join(self.source, file_), os.R_OK)]
 
@@ -149,8 +147,8 @@ class Section(object):
         else:
             #TODO: log this error
             raise InvalidConfiguration('strategy',
-                                        strategy,
-                                        'not a valid strategy')
+                                       strategy,
+                                       'not a valid strategy')
 
     @property
     def priority(self):
@@ -163,5 +161,5 @@ class Section(object):
 
         except ValueError:
             raise InvalidConfiguration('priority',
-                                        priority,
-                                        'not a valid priority')
+                                       priority,
+                                       'not a valid priority')

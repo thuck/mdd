@@ -20,27 +20,27 @@ Copyright (C) 2011 Denis 'Thuck' Doria
 # -------------------------------------------------------------------------
 
 import ConfigParser
-import section
+import section as sec
 from section import InvalidConfiguration
-#import logging
+import logging
 
 
 class Configuration(object):
 
-    default = {'strategy':'move',
-               'force':True,
-               'source':None,
-               'destination':None,
-               'regex':None,
-               'unix_pattern_matching':None,
-               'exception':None,
-               'pre_move':None,
-               'pos_move':None,
-               'priority':1}
+    default = {'strategy': 'move',
+               'force': True,
+               'source': None,
+               'destination': None,
+               'regex': None,
+               'unix_pattern_matching': None,
+               'exception': None,
+               'pre_move': None,
+               'pos_move': None,
+               'priority': 1}
 
     def __init__(self, conf_file):
         self.config = ConfigParser.SafeConfigParser(self.default)
-        self.config.read(os.path.expanduser(conf_file))
+        self.config.read(conf_file)
 
     def _get_value(self, section, option):
         return (self.config.has_option(section, option) and
@@ -56,7 +56,7 @@ class Configuration(object):
             self.config.remove_section('default')
 
         for section in self.config.sections():
-            name = self._get_value(section, 'name')
+            name = section
             source = self._get_value(section, 'source')
             destination = self._get_value(section, 'destination')
             regex = self._get_value(section, 'regex')
@@ -70,7 +70,7 @@ class Configuration(object):
 
             try:
                 sections.append(
-                    section.Section(
+                    sec.Section(
                                 name, source, destination,
                                 regex, upm,
                                 exception, force,
@@ -78,7 +78,7 @@ class Configuration(object):
                               )
                         )
             except InvalidConfiguration, error:
-                #TODO: Log the exception as a configuration error
+                logging.error(error)
                 continue
 
         return sections

@@ -21,78 +21,88 @@ Copyright (C) 2011 Denis 'Thuck' Doria
 # along with this program; if not, write to the Free Software
 # -------------------------------------------------------------------------
 
-from optparse import OptionParser
+import sys
 import os
+import os.path
+import time
+import signal
+import logging
 import daemon
 import daemon.pidlockfile as pid
 from daemon.pidlockfile import PIDFileParseError
-import sys
 from core import MagicDirectory
-import time
-import signal
+from core import MDException
+from core import parse_args
 
-RUN = True
+
+def refresh_conf(signal, stack):
+    global REFRESH_CONF
+    REFRESH_CONF = True
+
 
 def stop_daemon(signal, stack):
     global RUN
     RUN = False
 
-def parse_args():
-    parser = OptionParser()
-    parser.add_option("-c", "--conf", dest="conf", default='~/.config/mdd/conf',
-                  help="MDD configuration file, default: [~/.config/mdd/conf]")
-    parser.add_option("-i", "--interval",
-                  action="store", dest="interval", default=60,
-                  type='int',
-                  help="Change the interval between each run.")
-    parser.add_option("--no-daemon",
-                  action="store_true", dest="no_daemon", default=False,
-                  help="Don't detach from console.")
-    parser.add_option('-s', "--section",
-                  action="store", dest="section",
-                  help="Specify the section that should be used.")
-    parser.add_option("-v", "--version",
-                  action="store_true", dest="version", default=False,
-                  help="Print the current version.")
-
-    (options, args) = parser.parse_args()
-
-    return options
 
 if __name__ == '__main__':
-    options = parse_args()
+    options = parse_args(sys.argv[1:])
+    exit_ = 0
 
-    if options.version:
-        print '0.1'
-        sys.exit(0)
-
-    pid_path = '/var/lock/%s_mdd.pid' % (os.getlogin())
+    log_file = os.path.expanduser(options.log)
+    pid_path = os.path.expanduser(options.pid_file)
+    conf_file = os.path.expanduser(options.conf)
 
     try:
-        pid_file = pid.read_pid_from_pidfile(pid_path)
+        pid_number = pid.read_pid_from_pidfile(pid_path)
 
     except PIDFileParseError:
         print "Pid file doesn't contain a valid pid, solve this and try again"
-        sys.exit(1)
+        exit(1)
 
-    if pid_file is not None:
-        print "MDD is running already"
-        sys.exit(1)
-        
-    magic_directory = MagicDirectory(options.conf, options.section)
+    if pid_number is not None:
+        print "MDD is running already: %s" % (pid_number)
+        exit(1)
 
-    if options.no_daemon:
-        pid.write_pid_to_pidfile(pid_path)
-        magic_directory.run()
-        pid.remove_existing_pidfile(pid_path)
+#    with daemon.DaemonContext():
+    RUN = True
+    REFRESH_CONF = True
+    logging.basicConfig(format='%(asctime)s:%(levelname)s:%(message)s',
+                filename=log_file,
+                level=getattr(logging, options.log_level))
 
-    else:
-        with daemon.DaemonContext():
-            signal.signal(signal.SIGTERM, stop_daemon)
-            pid.write_pid_to_pidfile(pid_path)
-            while RUN:
-                magic_directory.run()
-                time.sleep(options.interval)
-            pid.remove_existing_pidfile(pid_path)
+    logging.info('Starting MDD')
+    signal.signal(signal.SIGTERM, stop_daemon)
+    signal.signal(signal.SIGUSR1, refresh_conf)
+    signal.signal(signal.SIGUSR2, refresh_conf)
 
-    sys.exit(0)
+    pid.write_pid_to_pidfile(pid_path)
+
+    while RUN:
+        logging.debug('Starting MD')
+
+        try:
+            if REFRESH_CONF is True:
+                REFRESH_CONF = False
+                logging.debug('Reading configuration file')
+                magic_directory = MagicDirectory(conf_file, options.section)
+
+            magic_directory.run()
+
+        except MDException:
+            exit_ = 1
+            logging.debug('Stopping MD')
+            break
+
+        logging.debug('Stopping MD')
+
+        if options.run_once is True:
+            RUN = False
+
+        else:
+            time.sleep(options.interval)
+
+    pid.remove_existing_pidfile(pid_path)
+    logging.info('Stopping MDD')
+
+    exit(exit_)
