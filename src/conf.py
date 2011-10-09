@@ -47,7 +47,7 @@ class Configuration(object):
                 self.config.get(section, option) or
                 self.config.get('DEFAULT', option))
 
-    def get_magic_directories(self):
+    def get_magic_directories(self, section_conf):
         sections = []
         #Change the default configuration.
         if self.config.has_section('default'):
@@ -55,8 +55,13 @@ class Configuration(object):
                 self.config.set('DEFAULT', name, value)
             self.config.remove_section('default')
 
+        logging.debug('Reading sections')
         for section in self.config.sections():
             name = section
+            logging.debug('Reading section %s' % (name))
+            if section_conf is not None and section != section_conf:
+                logging.debug('Aborting section %s' % (name))
+                continue
             source = self._get_value(section, 'source')
             destination = self._get_value(section, 'destination')
             regex = self._get_value(section, 'regex')
@@ -80,5 +85,7 @@ class Configuration(object):
             except InvalidConfiguration, error:
                 logging.error(error)
                 continue
+            logging.debug('End reading section %s' % (name))
+        logging.debug('End reading sections')
 
         return sections

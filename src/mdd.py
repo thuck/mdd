@@ -64,42 +64,41 @@ if __name__ == '__main__':
         print "MDD is running already: %s" % (pid_number)
         exit(1)
 
-#    with daemon.DaemonContext():
-    RUN = True
-    REFRESH_CONF = True
-    logging.basicConfig(format='%(asctime)s:%(levelname)s:%(message)s',
-                filename=log_file,
-                level=getattr(logging, options.log_level))
+    with daemon.DaemonContext():
+        RUN = True
+        REFRESH_CONF = True
+        logging.basicConfig(format='%(asctime)s:%(levelname)s:%(message)s',
+                    filename=log_file,
+                    level=getattr(logging, options.log_level))
 
-    logging.info('Starting MDD')
-    signal.signal(signal.SIGTERM, stop_daemon)
-    signal.signal(signal.SIGUSR1, refresh_conf)
-    signal.signal(signal.SIGUSR2, refresh_conf)
+        logging.info('Starting MDD')
+        signal.signal(signal.SIGTERM, stop_daemon)
+        signal.signal(signal.SIGUSR1, refresh_conf)
+        signal.signal(signal.SIGUSR2, refresh_conf)
 
-    pid.write_pid_to_pidfile(pid_path)
+        pid.write_pid_to_pidfile(pid_path)
 
-    while RUN:
-        logging.debug('Starting MD')
+        while RUN:
+            logging.debug('Starting MD')
 
-        try:
-            if REFRESH_CONF is True:
-                REFRESH_CONF = False
-                logging.debug('Reading configuration file')
-                magic_directory = MagicDirectory(conf_file, options.section)
+            try:
+                if REFRESH_CONF is True:
+                    REFRESH_CONF = False
+                    logging.debug('Reading configuration file')
+                    magic_directory = MagicDirectory(conf_file, options.section)
 
-            magic_directory.run()
+                magic_directory.run()
 
-        except MDException:
-            exit_ = 1
+            except MDException:
+                exit_ = 1
+                logging.debug('Stopping MD')
+                break
+
             logging.debug('Stopping MD')
-            break
 
-        logging.debug('Stopping MD')
+            if options.run_once is True:
+                break
 
-        if options.run_once is True:
-            RUN = False
-
-        else:
             time.sleep(options.interval)
 
     pid.remove_existing_pidfile(pid_path)

@@ -36,7 +36,7 @@ def parse_args(arg):
     parser.add_option("-l", "--log", dest="log",
                 default='~/.mdd/mdd.log',
                 help="MDD log file [default: %default]")
-    parser.add_option("--log-level", dest="log_level",
+    parser.add_option('-L', "--log-level", dest="log_level",
                 default='ERROR',
                 choices=['CRITICAL', 'DEBUG', 'ERROR',
                          'FATAL', 'INFO', 'WARNING'],
@@ -45,7 +45,7 @@ def parse_args(arg):
                 action="store", dest="interval", default=60,
                 type='int',
                 help="Change the interval between each run.")
-    parser.add_option("--run-once",
+    parser.add_option('-r', "--run-once",
                 action="store_true", dest="run_once", default=False,
                 help="Run once.")
     parser.add_option('-s', "--section",
@@ -54,7 +54,7 @@ def parse_args(arg):
     parser.add_option('-p', "--pid-file",
                 action="store", dest="pid_file",
                 default='~/.mdd/mdd.pid',
-                help="Specify the section that should be used.")
+                help="Specify the pid file that should be used.")
 
     (options, args) = parser.parse_args(args=arg)
 
@@ -74,11 +74,11 @@ class MagicDirectory(object):
             logging.error(err)
             raise MDException
         self.section = section
+        self.sections = None
 
     def run(self):
-        logging.debug('Reading sections')
-        sections = self.configuration.get_magic_directories()
-        logging.debug('End reading sections')
-        for i in sections:
-            i.update_transfer_files()
-            logging.debug(i.files)
+        self.sections = self.configuration.get_magic_directories(self.section)
+        for section in self.sections:
+            section.update_transfer_files()
+            logging.debug('Files on section %s:\n%s' % (section.name,
+            '\n'.join([str(file_[0]) for file_ in section.files])))
