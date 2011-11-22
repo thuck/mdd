@@ -48,6 +48,7 @@ class Configuration(object):
                 self.config.get('DEFAULT', option))
 
     def get_magic_directories(self, section_conf):
+        """ This function will retrieve the directories"""
         sections = []
         #Change the default configuration.
         if self.config.has_section('default'):
